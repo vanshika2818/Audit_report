@@ -1,4 +1,6 @@
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 import requests
 from bs4 import BeautifulSoup
@@ -15,6 +17,19 @@ from datetime import datetime
 load_dotenv()
 
 app = FastAPI(title="Lead Automation Backend")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.get("/")
+def read_root():
+    """Serve the frontend HTML file."""
+    return FileResponse("index.html")
 
 class LeadSubmitRequest(BaseModel):
     name: str
@@ -67,7 +82,12 @@ def enrich_company_data(domain: str) -> str:
         # Using the new google-genai SDK
         client = genai.Client(api_key=api_key)
         
-        prompt = f"You are an expert B2B consultant. Based on the following company domain ({domain}) and short description ({scraped_desc}), write a professional, 3-section audit report: (1) Company Overview, (2) Value Proposition, (3) Recommended AI/Tech Integrations for their domain. Keep the tone professional and concise."
+        if scraped_desc == "Information not currently available":
+            prompt = f"The website description could not be scraped. However, based on your general knowledge of the domain {domain}, please write a comprehensive 3-section B2B audit report: (1) Company Overview, (2) Value Proposition, (3) Recommended AI/Tech Integrations."
+            print("Using fallback prompt based on internal LLM knowledge.")
+        else:
+            prompt = f"You are an expert B2B consultant. Based on the following company domain ({domain}) and short description ({scraped_desc}), write a professional, 3-section audit report: (1) Company Overview, (2) Value Proposition, (3) Recommended AI/Tech Integrations for their domain. Keep the tone professional and concise."
+            print("Using standard prompt with scraped description.")
         
         response = client.models.generate_content(
             model='gemini-2.5-flash',
@@ -168,7 +188,7 @@ def submit_lead(lead: LeadSubmitRequest):
     report_path = generate_audit_report(lead.name, lead.company_domain, company_info)
     
     # Send Email
-    # send_email_with_report(lead.name, lead.email, report_path)
+    send_email_with_report(lead.name, lead.email, report_path)
     
     # Add enriched data and report path to response
     lead_data = lead.model_dump()

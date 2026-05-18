@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lead Generator & Tech Audit</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid #ffffff;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen flex items-center justify-center p-4 font-sans">
+
+    <div class="max-w-lg w-full bg-white rounded-2xl shadow-xl p-8 border border-slate-100">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-extrabold text-slate-900 mb-3 tracking-tight">AI Business Audit</h1>
+            <p class="text-slate-500 text-sm">Enter your details to generate a comprehensive B2B audit report powered by AI.</p>
+        </div>
+
+        <form id="leadForm" class="space-y-5">
+            <div>
+                <label for="name" class="block text-sm font-semibold text-slate-700 mb-1">Full Name</label>
+                <input type="text" id="name" name="name" required
+                    class="block w-full px-4 py-3 border border-slate-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-slate-900"
+                    placeholder="Jane Doe">
+            </div>
+
+            <div>
+                <label for="email" class="block text-sm font-semibold text-slate-700 mb-1">Email Address</label>
+                <input type="email" id="email" name="email" required
+                    class="block w-full px-4 py-3 border border-slate-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-slate-900"
+                    placeholder="jane@example.com">
+            </div>
+
+            <div>
+                <label for="company_domain" class="block text-sm font-semibold text-slate-700 mb-1">Company Domain</label>
+                <input type="text" id="company_domain" name="company_domain" required
+                    class="block w-full px-4 py-3 border border-slate-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-slate-900"
+                    placeholder="example.com">
+            </div>
+
+            <button type="submit" id="submitBtn"
+                class="w-full flex justify-center items-center py-3.5 px-4 mt-6 border border-transparent rounded-xl shadow-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 font-bold transition-all text-sm uppercase tracking-wide">
+                <span id="btnText">Generate Audit Report</span>
+            </button>
+        </form>
+
+        <div id="statusMessage" class="hidden mt-6 text-center p-4 rounded-xl transition-all duration-300">
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('leadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const btn = document.getElementById('submitBtn');
+            const btnText = document.getElementById('btnText');
+            const statusDiv = document.getElementById('statusMessage');
+            
+            const name = document.getElementById('name').value;
+            const email = document.getElementById('email').value;
+            const domain = document.getElementById('company_domain').value;
+
+            // Loading state
+            btn.disabled = true;
+            btn.classList.add('opacity-75', 'cursor-not-allowed');
+            btnText.innerHTML = '<div class="spinner"></div> Generating Report...';
+            statusDiv.className = 'hidden mt-6 text-center p-4 rounded-xl'; // reset
+
+            try {
+                // Calling the FastAPI backend on the same origin
+                const response = await fetch('/submit-lead', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        name: name,
+                        email: email,
+                        company_domain: domain
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    statusDiv.className = 'mt-6 text-center p-4 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-sm';
+                    statusDiv.innerHTML = '<p class="font-bold">Success!</p><p class="text-sm mt-1">Your report has been generated and emailed to you.</p>';
+                    document.getElementById('leadForm').reset();
+                } else {
+                    // Extract exact validation error from Pydantic if available
+                    let errorMsg = 'Failed to generate report';
+                    if (data.detail && Array.isArray(data.detail)) {
+                        errorMsg = data.detail[0].msg;
+                    } else if (data.detail) {
+                        errorMsg = data.detail;
+                    }
+                    throw new Error(errorMsg);
+                }
+            } catch (error) {
+                statusDiv.className = 'mt-6 text-center p-4 rounded-xl bg-red-50 text-red-800 border border-red-200 shadow-sm';
+                statusDiv.innerHTML = `<p class="font-bold">Error</p><p class="text-sm mt-1">${error.message}</p>`;
+            } finally {
+                // Reset button
+                btn.disabled = false;
+                btn.classList.remove('opacity-75', 'cursor-not-allowed');
+                btnText.innerHTML = 'Generate Audit Report';
+            }
+        });
+    </script>
+</body>
+</html>
