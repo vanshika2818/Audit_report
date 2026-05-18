@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+pydantic[email]
+requests
+beautifulsoup4
+python-dotenv
+google-genai
+weasyprint
+markdown
+jinja2
+
+
